@@ -1,0 +1,613 @@
+zabbix_export:
+  version: '7.4'
+  template_groups:
+    - uuid: 3dcd5bbe90534f9e8eb5c2d53756af63
+      name: Templates/Power
+  templates:
+    - uuid: 5e0ed176699f48588561164d4a8ec8c7
+      template: 'Generic UPS with iDA-200P by SNMP'
+      name: 'EAST UPS/DEXP/SNR'
+      description: |
+        For:
+        EAST UPS EA900 G4 series
+        DEXP DEXP IEC Plus ONLINE series
+        SNR BASE (online) series (up to 3000VA models)
+        LANCHES L900Pro-S series
+      groups:
+        - name: Templates/Power
+      items:
+        - uuid: 6efe2625aa124a3891176dcbecd3d96a
+          name: 'SNMP System Description'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.1.1.0
+          key: SysDescr
+          delay: 1d
+          value_type: TEXT
+          description: 'Linux kernel string of the SNMP card'
+          triggers:
+            - uuid: d8457a4cc5104d11b29e3d38ae59810d
+              expression: 'change(/Generic UPS with iDA-200P by SNMP/SysDescr)>0'
+              name: SysDecsr.changed
+              event_name: 'Linux kernel string has changed'
+              priority: INFO
+              manual_close: 'YES'
+        - uuid: 9f5fe537f1984b359afe48e7b48d5afd
+          name: 'SNMP Name'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.1.5.0
+          key: SysName
+          delay: 1d
+          value_type: TEXT
+          triggers:
+            - uuid: c274208f997c44d0a9a4bb4549a5d278
+              expression: 'change(/Generic UPS with iDA-200P by SNMP/SysName)>0'
+              name: SysName.changed
+              event_name: 'System name has changed on {HOST.NAME}'
+              priority: INFO
+              manual_close: 'YES'
+        - uuid: a861d9b0f7ee4298a05de83458f148bf
+          name: 'SNMP Uptime'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.1.3.0
+          key: SysUptime
+          trends: '0'
+          units: s
+          preprocessing:
+            - type: CHECK_NOT_SUPPORTED
+              parameters:
+                - '-1'
+              error_handler: CUSTOM_VALUE
+              error_handler_params: '0'
+            - type: MULTIPLIER
+              parameters:
+                - '0.01'
+          triggers:
+            - uuid: b88259ed06be41309c359696e1d9aee4
+              expression: '(last(/Generic UPS with iDA-200P by SNMP/SysUptime)>0 and last(/Generic UPS with iDA-200P by SNMP/SysUptime)<10m) or (last(/Generic UPS with iDA-200P by SNMP/SysUptime)=0 and last(/Generic UPS with iDA-200P by SNMP/SysUptime)<10m)'
+              name: SysUptime.reset
+              event_name: 'Device had reset'
+              priority: AVERAGE
+              description: 'Uptime is less than 10 minutes.'
+              manual_close: 'YES'
+        - uuid: c0e4c4173f4c4b2cb0c50af5657fb0e6
+          name: 'UPS Active Alarms'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.33.1.6.1.0
+          key: UpsActiveAlarmCount
+          triggers:
+            - uuid: a55e7819f6d046cdbf4067f09e33b5fe
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsActiveAlarmCount,#1)<>0'
+              name: UpsActiveAlarms
+              event_name: 'There are active alarms on the UPS'
+              priority: WARNING
+              manual_close: 'YES'
+        - uuid: 3061aec3293f4b04a736cd944b7cf618
+          name: 'UPS Battery Status'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.33.1.2.1.0
+          key: UpsBatteryStatus
+          value_type: TEXT
+          preprocessing:
+            - type: STR_REPLACE
+              parameters:
+                - '1'
+                - unknown
+            - type: STR_REPLACE
+              parameters:
+                - '2'
+                - normal
+            - type: STR_REPLACE
+              parameters:
+                - '3'
+                - low
+            - type: STR_REPLACE
+              parameters:
+                - '4'
+                - depleted
+          triggers:
+            - uuid: 4ee316ff512340eb9029ff1ded471482
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsBatteryStatus,#1)<>"normal"'
+              name: UpsBatteryStatus.notok
+              event_name: 'UPS Battery status reported not normal'
+              priority: HIGH
+              manual_close: 'YES'
+        - uuid: ebf8234975a84b40ae6fa1b323d3014e
+          name: 'UPS Battery Temperature'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.33.1.2.7.0
+          key: UpsBatteryTemp
+          units: C
+          triggers:
+            - uuid: d3845b550e114adcb56cf1dfae538fdd
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsBatteryTemp,#1)>45'
+              name: UpsBatteryTemp.high
+              event_name: 'UPS Battery Temperature too high'
+              priority: HIGH
+              description: 'UPS Battery Temperature too high'
+              manual_close: 'YES'
+            - uuid: 77b3bcc3a5934f3aa60ac804db306cc8
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsBatteryTemp,#1)<5'
+              name: UpsBatteryTemp.low
+              event_name: 'UPS Battery Temperature too low'
+              priority: HIGH
+              description: 'UPS Battery Temperature too low'
+        - uuid: 0a860a5115c24210ad80f97aff3400fb
+          name: 'UPS Battery Voltage'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.33.1.2.5.0
+          key: UpsBatteryVoltage
+          delay: 15s
+          value_type: FLOAT
+          units: V
+          description: 'UPS Battery Voltage'
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.1'
+          triggers:
+            - uuid: fe72d1d11a4643f7b5686bec051d8bec
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsBatteryVoltage,#1)>83'
+              name: UpsBatteryVoltage.high
+              event_name: 'UPS Battery Voltrage too high'
+              priority: DISASTER
+              description: 'UPS Battery Voltrage too high (For 6S Pack)'
+              manual_close: 'YES'
+            - uuid: 8296cadfbb994098b1cac6143b58167e
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsBatteryVoltage,#1)<67'
+              name: UpsBatteryVoltage.low
+              event_name: 'UPS battery voltage too low'
+              priority: DISASTER
+              description: 'UPS battery voltage too low (For 6S pack)'
+              manual_close: 'YES'
+        - uuid: 5c24782d70e1402fb5909c71b88e378a
+          name: 'UPS AC Input Frequency'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.33.1.3.3.1.2.1.0
+          key: UpsInputFreq
+          value_type: FLOAT
+          units: Hz
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.1'
+            - type: REGEX
+              parameters:
+                - '(\d+\.\d{2})\d*|(\d+)'
+                - \1\2
+          triggers:
+            - uuid: 50bbf5e010f74ff987b8121766e45ec6
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsInputFreq,#1)>51'
+              name: UpsInputFreq.high
+              event_name: 'UPS AC Input Frrequency too high'
+              priority: DISASTER
+              manual_close: 'YES'
+            - uuid: 6d946a1c132e4e5a96b131ff13669082
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsInputFreq,#1)<49'
+              name: UpsInputFreq.low
+              event_name: 'UPS AC Input Frequency too low'
+              priority: DISASTER
+              manual_close: 'YES'
+        - uuid: 21d947e2cecf49209875a6c0c0fd5917
+          name: 'UPS AC Input Voltage'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.33.1.3.3.1.3.1.0
+          key: UpsInputVoltage
+          units: V
+          triggers:
+            - uuid: 4c32158cd34a4156a0a20f314268829d
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsInputVoltage,#1)>247'
+              name: UpsInputVoltage.high
+              event_name: 'UPS AC Input Voltage too high'
+              priority: AVERAGE
+            - uuid: 2efd63fbc4844a1d9ed664db77bd12a1
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsInputVoltage,#1)<215'
+              name: UpsInputVoltage.low
+              event_name: 'UPS AC Input Voltage too low'
+              priority: AVERAGE
+              manual_close: 'YES'
+        - uuid: b4e8d4e9fe7c46619995fd52622d3000
+          name: 'UPS AC Output Frequency'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.33.1.4.2.0
+          key: UpsOutputFreq
+          value_type: FLOAT
+          units: Hz
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.1'
+            - type: REGEX
+              parameters:
+                - '(\d+\.\d{2})\d*|(\d+)'
+                - \1\2
+          triggers:
+            - uuid: 9e63ffa021da4e3ea3e73aa666f7d8ab
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsOutputFreq,#1)>51'
+              name: UpsOutputFreq.high
+              event_name: 'UPS AC Output Frequency too high'
+              priority: DISASTER
+              manual_close: 'YES'
+            - uuid: 0f2c6ed9d41c4d498149c0ac9f77998d
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsOutputFreq,#1)<49'
+              name: UpsOutputFreq.low
+              event_name: 'UPS AC Output Frequency too low'
+              priority: DISASTER
+              manual_close: 'YES'
+        - uuid: f70f87ce530a4864a13f00ca762db0f8
+          name: 'UPS AC Output Load (%)'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.33.1.4.4.1.5.1.0
+          key: UpsOutputLoadPercent
+          delay: 15s
+          units: '%'
+          triggers:
+            - uuid: badce931bfba465e9ac2c492e97d1607
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsOutputLoadPercent,#1)>80'
+              name: UpsOutputLoadPercent.high
+              event_name: 'UPS AC Output Load too high'
+              priority: AVERAGE
+              manual_close: 'YES'
+        - uuid: 9bc0a4d565e54d03bb22e2f75df0eb96
+          name: 'UPS AC Output Load (Calculated)'
+          type: CALCULATED
+          key: UpsOutputLoadW
+          delay: 30s
+          units: W
+          params: 'last(//UpsOutputLoadPercent)*2700/100'
+        - uuid: 15fae9d2f58e4cfaa4417619d59f337d
+          name: 'UPS AC Output Source'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.33.1.4.1.0
+          key: UpsOutputSource
+          value_type: TEXT
+          description: |
+            UPS AC Output Source
+            Status descriptions:
+            1 - unknown
+            2 - not verified, probably if the UPS is started without battery or no communication with the inverter
+            3 - normal state - AC input is normal and inverter output is normal
+            4 - normal state - AC input is normal, bypass mode is on
+            5 - no AC input, works off battery
+            6 - unknown
+            7 - unknown
+          preprocessing:
+            - type: STR_REPLACE
+              parameters:
+                - '1'
+                - other
+            - type: STR_REPLACE
+              parameters:
+                - '2'
+                - none
+            - type: STR_REPLACE
+              parameters:
+                - '3'
+                - normal
+            - type: STR_REPLACE
+              parameters:
+                - '4'
+                - bypass
+            - type: STR_REPLACE
+              parameters:
+                - '5'
+                - battery
+            - type: STR_REPLACE
+              parameters:
+                - '6'
+                - booster
+            - type: STR_REPLACE
+              parameters:
+                - '7'
+                - reducer
+          triggers:
+            - uuid: 74cbb29e0d064d28a406eadb5ee1ee6c
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsOutputSource,#1)="battery"'
+              name: UpsOutputSource.battery
+              event_name: 'UPS Has switched to battery'
+              priority: HIGH
+            - uuid: c10b1f87612c42d0ade800e55fd6f0df
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsOutputSource,#1)="bypass"'
+              name: UpsOutputSource.bypass
+              event_name: 'UPS Bypass mode is ON'
+              priority: INFO
+              manual_close: 'YES'
+            - uuid: 974e212806d74b299375c28929ee57c0
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsOutputSource,#1)="none"'
+              name: UpsOutputSource.none
+              event_name: 'UPS AC Output Source is not present or not working'
+              priority: DISASTER
+            - uuid: 2c40e1d4d2084f83bb4c8aee0d666b99
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsOutputSource,#1)="other" or last(/Generic UPS with iDA-200P by SNMP/UpsOutputSource,#1)="booster" or last(/Generic UPS with iDA-200P by SNMP/UpsOutputSource,#1)="reducer"'
+              name: UpsOutputSource.unknown
+              event_name: 'UPS AC Output Source is unknown'
+              priority: WARNING
+              manual_close: 'YES'
+        - uuid: e68958b382a640238f1d8df1370c3b15
+          name: 'UPS AC Output Voltage'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.33.1.4.4.1.2.1.0
+          key: UpsOutputVoltage
+          units: V
+          triggers:
+            - uuid: 2bf7dfa70bd7453aac587b968e97adb4
+              expression: 'last(/Generic UPS with iDA-200P by SNMP/UpsOutputVoltage,#1)<225 or last(/Generic UPS with iDA-200P by SNMP/UpsOutputVoltage,#1)>235'
+              name: UpsOutputVoltage.outofrange
+              event_name: 'UPS AC Output Voltage out of range (230 +-5V)'
+              priority: AVERAGE
+              manual_close: 'YES'
+        - uuid: 58bd47911bca4ee9ba5df844ea13c725
+          name: 'SNMP Card Software Version'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.33.1.1.4.0
+          key: UPSSnmpCardVersion
+          delay: 1d
+          value_type: TEXT
+          description: 'SNMP Card Software Version'
+          triggers:
+            - uuid: 98e46437fef34363805f5f8776ae82f9
+              expression: 'change(/Generic UPS with iDA-200P by SNMP/UPSSnmpCardVersion)>0'
+              name: UpsSnmpCardVesion.changed
+              event_name: 'UPS SNMP Card Software Verion has changed'
+              priority: INFO
+              description: 'UPS SNMP Card Software Verion has changed'
+              manual_close: 'YES'
+        - uuid: 0c30a5860e154ff9bfec0d10490a3ccf
+          name: 'SNMP UPS Software Version'
+          type: SNMP_AGENT
+          snmp_oid: .1.3.6.1.2.1.33.1.1.3.0
+          key: UpsSWVersion
+          delay: 1d
+          history: '0'
+          value_type: TEXT
+          triggers:
+            - uuid: 861d347ca7e14097bf4c5cc5d138cb44
+              expression: 'change(/Generic UPS with iDA-200P by SNMP/UpsSWVersion)>0'
+              name: UpsSWver.changed
+              event_name: 'UPS Software vesion has changed'
+              priority: INFO
+              description: 'UPS Software vesion has changed'
+              manual_close: 'YES'
+      dashboards:
+        - uuid: 8402ea2561764f21a670101c90687b5c
+          name: 'UPS View'
+          display_period: '60'
+          pages:
+            - name: 'Default View'
+              widgets:
+                - type: itemcard
+                  name: 'UPS Info'
+                  width: '14'
+                  height: '3'
+                  fields:
+                    - type: ITEM
+                      name: itemid.0
+                      value:
+                        host: 'Generic UPS with iDA-200P by SNMP'
+                        key: SysName
+                    - type: INTEGER
+                      name: sections.0
+                      value: '3'
+                - type: svggraph
+                  name: 'UPS AC Input'
+                  'y': '3'
+                  width: '36'
+                  height: '5'
+                  fields:
+                    - type: INTEGER
+                      name: ds.0.color_palette
+                      value: '0'
+                    - type: STRING
+                      name: ds.0.items.0
+                      value: 'UPS AC Input Voltage'
+                    - type: INTEGER
+                      name: ds.1.axisy
+                      value: '1'
+                    - type: STRING
+                      name: ds.1.color
+                      value: FFD54F
+                    - type: STRING
+                      name: ds.1.items.0
+                      value: 'UPS AC Input Frequency'
+                    - type: STRING
+                      name: lefty_max
+                      value: '260'
+                    - type: STRING
+                      name: lefty_min
+                      value: '200'
+                    - type: STRING
+                      name: reference
+                      value: IMGDU
+                    - type: STRING
+                      name: righty_max
+                      value: '55'
+                    - type: STRING
+                      name: righty_min
+                      value: '45'
+                - type: svggraph
+                  name: 'UPS Load'
+                  'y': '8'
+                  width: '36'
+                  height: '5'
+                  fields:
+                    - type: INTEGER
+                      name: ds.0.color_palette
+                      value: '0'
+                    - type: STRING
+                      name: ds.0.items.0
+                      value: 'UPS AC Output Load (Calculated)'
+                    - type: INTEGER
+                      name: ds.1.axisy
+                      value: '1'
+                    - type: STRING
+                      name: ds.1.color
+                      value: FFD54F
+                    - type: STRING
+                      name: ds.1.items.0
+                      value: 'UPS AC Output Load (%)'
+                    - type: STRING
+                      name: lefty_max
+                      value: '3000'
+                    - type: STRING
+                      name: lefty_min
+                      value: '0'
+                    - type: STRING
+                      name: reference
+                      value: PLNLF
+                    - type: STRING
+                      name: righty_max
+                      value: '100'
+                    - type: STRING
+                      name: righty_min
+                      value: '0'
+                - type: itemcard
+                  name: 'UPS Output Status'
+                  x: '14'
+                  width: '14'
+                  height: '3'
+                  fields:
+                    - type: ITEM
+                      name: itemid.0
+                      value:
+                        host: 'Generic UPS with iDA-200P by SNMP'
+                        key: UpsOutputSource
+                    - type: INTEGER
+                      name: sections.0
+                      value: '3'
+                - type: svggraph
+                  name: 'UPS AC Output'
+                  x: '36'
+                  'y': '3'
+                  width: '36'
+                  height: '5'
+                  fields:
+                    - type: INTEGER
+                      name: ds.0.color_palette
+                      value: '0'
+                    - type: STRING
+                      name: ds.0.items.0
+                      value: 'UPS AC Output Voltage'
+                    - type: INTEGER
+                      name: ds.1.axisy
+                      value: '1'
+                    - type: STRING
+                      name: ds.1.color
+                      value: FFD54F
+                    - type: STRING
+                      name: ds.1.items.0
+                      value: 'UPS AC Output Frequency'
+                    - type: STRING
+                      name: lefty_max
+                      value: '260'
+                    - type: STRING
+                      name: lefty_min
+                      value: '200'
+                    - type: STRING
+                      name: reference
+                      value: GLUHL
+                    - type: STRING
+                      name: righty_max
+                      value: '55'
+                    - type: STRING
+                      name: righty_min
+                      value: '45'
+                - type: svggraph
+                  name: 'UPS Battery'
+                  x: '36'
+                  'y': '8'
+                  width: '36'
+                  height: '5'
+                  fields:
+                    - type: INTEGER
+                      name: ds.0.color_palette
+                      value: '0'
+                    - type: STRING
+                      name: ds.0.items.0
+                      value: 'UPS Battery Voltage'
+                    - type: INTEGER
+                      name: ds.1.axisy
+                      value: '1'
+                    - type: STRING
+                      name: ds.1.color
+                      value: FFD54F
+                    - type: STRING
+                      name: ds.1.items.0
+                      value: 'UPS Battery Temperature'
+                    - type: STRING
+                      name: lefty_max
+                      value: '90'
+                    - type: STRING
+                      name: lefty_min
+                      value: '50'
+                    - type: STRING
+                      name: reference
+                      value: RGQCU
+                    - type: STRING
+                      name: righty_max
+                      value: '60'
+                    - type: STRING
+                      name: righty_min
+                      value: '0'
+  graphs:
+    - uuid: 68bfefa9a1a24fefa107a0e8b84b3f97
+      name: 'UPS Battery Info'
+      yaxismax: '0'
+      graph_items:
+        - color: 199C0D
+          calc_fnc: ALL
+          item:
+            host: 'Generic UPS with iDA-200P by SNMP'
+            key: UpsBatteryVoltage
+        - sortorder: '1'
+          color: F63100
+          yaxisside: RIGHT
+          calc_fnc: ALL
+          item:
+            host: 'Generic UPS with iDA-200P by SNMP'
+            key: UpsBatteryTemp
+    - uuid: a925cdf0be8545d899f601bb9f869d6e
+      name: 'UPS Input Info'
+      yaxismax: '0'
+      graph_items:
+        - color: FF0000
+          yaxisside: RIGHT
+          calc_fnc: ALL
+          item:
+            host: 'Generic UPS with iDA-200P by SNMP'
+            key: UpsInputFreq
+        - sortorder: '1'
+          color: 00FF00
+          calc_fnc: ALL
+          item:
+            host: 'Generic UPS with iDA-200P by SNMP'
+            key: UpsInputVoltage
+    - uuid: f59388198da540478e2b176eff269871
+      name: 'UPS Load Info'
+      yaxismax: '0'
+      graph_items:
+        - color: 199C0D
+          calc_fnc: ALL
+          item:
+            host: 'Generic UPS with iDA-200P by SNMP'
+            key: UpsOutputLoadW
+        - sortorder: '1'
+          color: F63100
+          calc_fnc: ALL
+          item:
+            host: 'Generic UPS with iDA-200P by SNMP'
+            key: UpsOutputLoadPercent
+    - uuid: 030972d4582f4ba19d589260df968403
+      name: 'UPS Output Info'
+      yaxismax: '0'
+      graph_items:
+        - color: 199C0D
+          calc_fnc: ALL
+          item:
+            host: 'Generic UPS with iDA-200P by SNMP'
+            key: UpsOutputVoltage
+        - sortorder: '1'
+          color: F63100
+          yaxisside: RIGHT
+          calc_fnc: ALL
+          item:
+            host: 'Generic UPS with iDA-200P by SNMP'
+            key: UpsOutputFreq
